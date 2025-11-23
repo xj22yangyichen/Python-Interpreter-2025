@@ -5,6 +5,9 @@ build/
 gen/
 antlr-playground/.antlr
 resources/.antlr
+resources/.deb
+resources/.zip
+.vscode/
 # Testcases
 testcases/hidden-testcases
 2921
