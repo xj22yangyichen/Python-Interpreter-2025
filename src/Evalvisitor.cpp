@@ -71,7 +71,15 @@ std::any EvalVisitor::to_string(const std::any &value) {
   return std::any(ret);
 }
 
-std::any EvalVisitor::print(const std::vector<std::any> &args) {
+std::any EvalVisitor::print(const std::vector<std::any> &args_) {
+  std::vector<std::any> args;
+  for (auto i : args_) {
+    if (auto vec = std::any_cast<std::vector<std::any>>(&i)) {
+      args.insert(args.end(), vec->begin(), vec->end());
+    } else {
+      args.push_back(i);
+    }
+  }
   for (size_t i = 0; i < args.size(); ++i) {
     if (i > 0) std::cout << " ";
     if (auto val = std::any_cast<std::string>(&args[i])) {
@@ -83,6 +91,7 @@ std::any EvalVisitor::print(const std::vector<std::any> &args) {
     } else if (auto val = std::any_cast<bool>(&args[i])) {
       std::cout << std::setprecision(6) << (*val ? "True" : "False");
     } else {
+      // std::cerr << "Unknown type in print function" << std::endl;
       std::cout << "None";
     }
   }
@@ -92,6 +101,7 @@ std::any EvalVisitor::print(const std::vector<std::any> &args) {
 
 std::any EvalVisitor::callSystemFunction(const std::string &name, const std::vector<std::any> &args) {
   if (name == "print") {
+    // std::cerr << "Calling system function 'print', args size: " << args.size() << std::endl;
     return print(args);
   }
   if (name == "int") {
@@ -121,14 +131,17 @@ std::any EvalVisitor::callSystemFunction(const std::string &name, const std::vec
   throw std::runtime_error("System function '" + name + "' not implemented");
 }
 
-std::any EvalVisitor::getVariable(const std::string &name) {
-  for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
-    auto found = it->find(name);
-    if (found != it->end()) {
-      return found->second;
+std::any EvalVisitor::getVariable(std::any const &val) {
+  if (auto namePtr = std::any_cast<std::string>(&val)) {
+    std::string name = *namePtr;
+    for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
+      auto found = it->find(name);
+      if (found != it->end()) {
+        return found->second;
+      }
     }
   }
-  throw std::runtime_error("Variable '" + name + "' not defined");
+  return val;
 }
 
 void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
@@ -427,9 +440,10 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
   auto testlist_ctx = ctx->testlist();
   auto value = visit(testlist_ctx.back());
   if (ctx->augassign()) {
-    auto varName = std::any_cast<std::string>(visit(testlist_ctx[0]));
+    auto var = visit(testlist_ctx[0]);
+    auto varName = std::any_cast<std::string>(var);
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
-    auto currentValue = getVariable(varName); // left-hand side current value
+    auto currentValue = getVariable(var); // left-hand side current value
     // operate after removing '=' from operator
     auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value);
     setVariable(varName, newValue);
@@ -676,9 +690,14 @@ std::any EvalVisitor::visitAddorsub_op(Python3Parser::Addorsub_opContext *ctx) {
 
 std::any EvalVisitor::visitTerm(Python3Parser::TermContext *ctx) {
   auto factors = ctx->factor();
-  auto muldivmodOps = ctx->muldivmod_op();
   size_t factors_count = factors.size();
-  std::any result = visit(factors[0]);
+  auto result = visit(factors[0]);
+  if (factors_count == 1) {
+    // std::cerr << "Term with single factor" << std::endl;
+    // std::cerr << std::any_cast<std::string>(to_string(result)) << std::endl;
+    return result;
+  }
+  auto muldivmodOps = ctx->muldivmod_op();
   for (size_t i = 0; i < muldivmodOps.size(); ++i) {
     auto nextValue = visit(factors[i + 1]);
     auto op = std::any_cast<std::string>(visit(muldivmodOps[i]));
@@ -733,12 +752,17 @@ std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
       throw std::runtime_error("TypeError: bad operand type for unary -");
     }
   } else if (ctx->atom_expr()) {
+    // auto tmp = visit(ctx->atom_expr());
+    // if (auto vec = std::any_cast<std::vector<std::any>>(&tmp)) {
+    //   std::cerr << "Visiting factor returning vector of size: " << vec->size() << std::endl;
+    // }
     return visit(ctx->atom_expr());
   }
   throw std::runtime_error("Invalid factor");
 }
 
 std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
+  // std::cerr << "Visiting atom_expr" << std::endl;
   auto atomCtx = visit(ctx->atom());
   if (atomCtx.type() == typeid(std::string) && ctx->trailer()) {
     // function call
@@ -825,7 +849,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
     }
   }
   if (ctx->STRING(0)) {
-    std::vector<std::string> ret;
+    std::vector<std::any> ret;
     auto strs = ctx->STRING();
     for (auto strCtx : strs) {
       std::string rawStr = strCtx->getText();
@@ -859,6 +883,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
           processedStr += content[i];
         }
       }
+      // std::cerr << "Processed string: " << processedStr << std::endl;
       ret.push_back(processedStr);
     }
     return std::any(ret);

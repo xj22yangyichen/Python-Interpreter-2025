@@ -35,7 +35,7 @@ private:
   std::any callSystemFunction(const std::string &name, const std::vector<std::any> &args);
 
   // Find the value of a variable
-  std::any getVariable(const std::string &name);
+  std::any getVariable(std::any const &val);
 
   // Set the value of a variable
   void setVariable(const std::string &name, const std::any &value);
