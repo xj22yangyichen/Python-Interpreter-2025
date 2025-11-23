@@ -8,6 +8,7 @@ resources/.antlr
 resources/.deb
 resources/.zip
 .vscode/
+out.txt
 # Testcases
 testcases/hidden-testcases
 2921
