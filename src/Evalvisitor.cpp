@@ -402,7 +402,7 @@ std::any EvalVisitor::visitTypedargslist(Python3Parser::TypedargslistContext *ct
     }
     if (i >= non_defaults_count) {
       auto default_value_ctx = parameters_with_defaults[i - non_defaults_count];
-      arg.default_value = visit(default_value_ctx);
+      arg.default_value = getVariable(visit(default_value_ctx));
     } else {
       arg.default_value = std::any();
     }
@@ -514,7 +514,7 @@ std::any EvalVisitor::visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) {
   if (ctx->testlist()) {
     auto tests = ctx->testlist()->test();
     for (auto test : tests) {
-      auto value = visit(test);
+      auto value = getVariable(test);
       returnValues.push_back(value);
     }
   }
@@ -540,6 +540,7 @@ std::any EvalVisitor::visitIf_stmt(Python3Parser::If_stmtContext *ctx) {
   size_t conditions_count = tests.size();
   for (size_t i = 0; i < conditions_count; ++i) {
     auto conditionValue = visit(tests[i]);
+    conditionValue = getVariable(conditionValue);
     if (std::any_cast<bool>(to_bool(conditionValue))) {
       return visit(suites[i]);
     }
@@ -552,13 +553,13 @@ std::any EvalVisitor::visitIf_stmt(Python3Parser::If_stmtContext *ctx) {
 }
 
 std::any EvalVisitor::visitWhile_stmt(Python3Parser::While_stmtContext *ctx) {
-  auto conditionCtx = ctx->test();
-  auto bodyCtx = ctx->suite();
   while (true) {
-    auto conditionValue = visit(conditionCtx);
+    auto conditionCtx = ctx->test();
+    auto conditionValue = getVariable(visit(conditionCtx));
     if (!std::any_cast<bool>(to_bool(conditionValue))) {
       break;
     }
+    auto bodyCtx = ctx->suite();
     auto result = visit(bodyCtx);
     if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
       auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
@@ -597,12 +598,19 @@ std::any EvalVisitor::visitOr_test(Python3Parser::Or_testContext *ctx) {
   auto andTests = ctx->and_test();
   size_t tests_count = andTests.size();
   std::any result = visit(andTests[0]);
+  if (tests_count == 1) {
+    return result;
+  }
+  result = getVariable(result);
+  result = to_bool(result);
   for (size_t i = 1; i < tests_count; ++i) {
     // return true if any is true
-    if (std::any_cast<bool>(to_bool(result))) {
+    if (std::any_cast<bool>(result)) {
       return result;
     }
     auto nextValue = visit(andTests[i]);
+    nextValue = getVariable(nextValue);
+    nextValue = to_bool(nextValue);
     result = nextValue;
   }
   return result;
@@ -612,12 +620,19 @@ std::any EvalVisitor::visitAnd_test(Python3Parser::And_testContext *ctx) {
   auto notTests = ctx->not_test();
   size_t tests_count = notTests.size();
   std::any result = visit(notTests[0]);
+  if (tests_count == 1) {
+    return result;
+  }
+  result = getVariable(result);
+  result = to_bool(result);
   for (size_t i = 1; i < tests_count; ++i) {
     // return false if any is false
-    if (!std::any_cast<bool>(to_bool(result))) {
+    if (!std::any_cast<bool>(result)) {
       return result;
     }
     auto nextValue = visit(notTests[i]);
+    nextValue = getVariable(nextValue);
+    nextValue = to_bool(nextValue);
     result = nextValue;
   }
   return result;
@@ -626,6 +641,7 @@ std::any EvalVisitor::visitAnd_test(Python3Parser::And_testContext *ctx) {
 std::any EvalVisitor::visitNot_test(Python3Parser::Not_testContext *ctx) {
   if (ctx->NOT()) {
     auto value = visit(ctx->not_test());
+    value = getVariable(value);
     bool boolValue = std::any_cast<bool>(to_bool(value));
     return std::any(!boolValue);
   } else {
@@ -635,14 +651,16 @@ std::any EvalVisitor::visitNot_test(Python3Parser::Not_testContext *ctx) {
 
 std::any EvalVisitor::visitComparison(Python3Parser::ComparisonContext *ctx) {
   auto arithExprs = ctx->arith_expr();
-  auto compOps = ctx->comp_op();
   size_t exprs_count = arithExprs.size();
-  if (exprs_count == 1) {
-    return visit(arithExprs[0]);
-  }
   std::any leftValue = visit(arithExprs[0]);
+  if (exprs_count == 1) {
+    return leftValue;
+  }
+  leftValue = getVariable(leftValue);
+  auto compOps = ctx->comp_op();
   for (size_t i = 0; i < compOps.size(); ++i) {
     auto rightValue = visit(arithExprs[i + 1]);
+    rightValue = getVariable(rightValue);
     auto op = std::any_cast<std::string>(visit(compOps[i]));
     auto comparisonResult = operate(op, leftValue, rightValue);
     if (!std::any_cast<bool>(comparisonResult)) {
@@ -683,8 +701,10 @@ std::any EvalVisitor::visitArith_expr(Python3Parser::Arith_exprContext *ctx) {
     return result;
   }
   auto addorsubOps = ctx->addorsub_op();
+  result = getVariable(result);
   for (size_t i = 0; i < addorsubOps.size(); ++i) {
     auto nextValue = visit(terms[i + 1]);
+    nextValue = getVariable(nextValue);
     auto op = std::any_cast<std::string>(visit(addorsubOps[i]));
     result = operate(op, result, nextValue);
   }
@@ -711,8 +731,10 @@ std::any EvalVisitor::visitTerm(Python3Parser::TermContext *ctx) {
     return result;
   }
   auto muldivmodOps = ctx->muldivmod_op();
+  result = getVariable(result);
   for (size_t i = 0; i < muldivmodOps.size(); ++i) {
     auto nextValue = visit(factors[i + 1]);
+    nextValue = getVariable(nextValue);
     auto op = std::any_cast<std::string>(visit(muldivmodOps[i]));
     result = operate(op, result, nextValue);
   }
@@ -738,6 +760,7 @@ std::any EvalVisitor::visitMuldivmod_op(Python3Parser::Muldivmod_opContext *ctx)
 std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
   if (ctx->factor()) {
     auto value = visit(ctx->factor());
+    value = getVariable(value);
     if (ctx->ADD()) {
       if (value.type() == typeid(double)) {
         return value;
@@ -943,14 +966,14 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
       auto value = visit(tests[j]);
       if (auto val = std::any_cast<std::vector<std::any>>(&value)) {
         for (auto element : *val) {
-          auto strVal = to_string(element);
+          auto strVal = to_string(getVariable(element));
           result += std::any_cast<std::string>(strVal);
         }
       }
       j++;
     }
   }
-  return std::any(result);
+  return std::vector<std::any>{result};
 }
 
 std::any EvalVisitor::visitTestlist(Python3Parser::TestlistContext *ctx) {
@@ -984,11 +1007,11 @@ std::any EvalVisitor::visitArgument(Python3Parser::ArgumentContext *ctx) {
   Argument arg;
   auto tests = ctx->test();
   if (tests.size() == 1) {
-    arg.default_value = visit(tests[0]);
+    arg.default_value = getVariable(visit(tests[0]));
   } else {
     // std::cerr << "Visiting argument with name and default value" << std::endl;
     arg.name = std::any_cast<std::string>(visit(tests[0]));
-    arg.default_value = visit(tests[1]);
+    arg.default_value = getVariable(visit(tests[1]));
   }
   return arg;
 }
