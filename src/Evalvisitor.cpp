@@ -75,9 +75,11 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
   std::vector<std::any> args;
   for (auto i : args_) {
     if (auto vec = std::any_cast<std::vector<std::any>>(&i)) {
-      args.insert(args.end(), vec->begin(), vec->end());
+      for (auto j : *vec) {
+        args.push_back(getVariable(j));
+      }
     } else {
-      args.push_back(i);
+      args.push_back(getVariable(i));
     }
   }
   for (size_t i = 0; i < args.size(); ++i) {
@@ -151,8 +153,8 @@ void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
       return;
     }
   }
-  // If variable not found in any scope, set it in the global scope
-  variables.front()[name] = value;
+  // If variable not found in any scope, set it in the current scope
+  variables.back()[name] = value;
 }
 
 std::any EvalVisitor::operate(const std::string &op, std::any left, std::any right) {
@@ -438,19 +440,26 @@ std::any EvalVisitor::visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) {
 
 std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
   auto testlist_ctx = ctx->testlist();
-  auto value = visit(testlist_ctx.back());
+  auto value = std::any_cast<std::vector<std::any>>(visit(testlist_ctx.back()));
+  // std::cerr << "Assigned value type: " << value.type().name() << std::endl;
+  // auto testlistCtx = std::any_cast<std::vector<std::any>>(value);
   if (ctx->augassign()) {
-    auto var = visit(testlist_ctx[0]);
+    auto var = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[0]))[0];
     auto varName = std::any_cast<std::string>(var);
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
     auto currentValue = getVariable(var); // left-hand side current value
     // operate after removing '=' from operator
-    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value);
+    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value[0]);
     setVariable(varName, newValue);
   } else {
-    for (size_t i = 0; i < ctx->ASSIGN().size(); ++i) {
-      auto varName = std::any_cast<std::string>(visit(testlist_ctx[i]));
-      setVariable(varName, value);
+    // std::cerr << "Visiting normal assignment" << std::endl;
+    for (int i = testlist_ctx.size() - 2; i >= 0; --i) {
+      // std::cerr << "Assigning to variable(s) in testlist index " << i << std::endl;
+      auto varList = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[i]));
+      for (int i = 0; i < varList.size(); ++i) {
+        auto varName = std::any_cast<std::string>(varList[i]);
+        setVariable(varName, value[i]);
+      }
     }
   }
   return std::any();
@@ -580,6 +589,7 @@ std::any EvalVisitor::visitSuite(Python3Parser::SuiteContext *ctx) {
 }
 
 std::any EvalVisitor::visitTest(Python3Parser::TestContext *ctx) {
+  // std::cerr << "Visiting test" << std::endl;
   return visit(ctx->or_test());
 }
 
@@ -667,9 +677,12 @@ std::any EvalVisitor::visitComp_op(Python3Parser::Comp_opContext *ctx) {
 
 std::any EvalVisitor::visitArith_expr(Python3Parser::Arith_exprContext *ctx) {
   auto terms = ctx->term();
-  auto addorsubOps = ctx->addorsub_op();
   size_t terms_count = terms.size();
   std::any result = visit(terms[0]);
+  if (terms_count == 1) {
+    return result;
+  }
+  auto addorsubOps = ctx->addorsub_op();
   for (size_t i = 0; i < addorsubOps.size(); ++i) {
     auto nextValue = visit(terms[i + 1]);
     auto op = std::any_cast<std::string>(visit(addorsubOps[i]));
@@ -941,6 +954,7 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
 }
 
 std::any EvalVisitor::visitTestlist(Python3Parser::TestlistContext *ctx) {
+  // std::cerr << "Visiting testlist" << std::endl;
   std::vector<std::any> values;
   auto tests = ctx->test();
   for (auto test : tests) {
@@ -972,6 +986,7 @@ std::any EvalVisitor::visitArgument(Python3Parser::ArgumentContext *ctx) {
   if (tests.size() == 1) {
     arg.default_value = visit(tests[0]);
   } else {
+    // std::cerr << "Visiting argument with name and default value" << std::endl;
     arg.name = std::any_cast<std::string>(visit(tests[0]));
     arg.default_value = visit(tests[1]);
   }

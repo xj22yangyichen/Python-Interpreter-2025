@@ -9,6 +9,7 @@ resources/.deb
 resources/.zip
 .vscode/
 out.txt
+test.in
 # Testcases
 testcases/hidden-testcases
 2921
