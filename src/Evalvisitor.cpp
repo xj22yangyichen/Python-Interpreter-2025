@@ -158,6 +158,7 @@ void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
 }
 
 std::any EvalVisitor::operate(const std::string &op, std::any left, std::any right) {
+  // std::cerr << "Operating: " << op << std::endl;
   if (op == "+") {
     if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
       auto leftStr = to_string(left);
@@ -467,22 +468,22 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
 
 std::any EvalVisitor::visitAugassign(Python3Parser::AugassignContext *ctx) {
   if (ctx->ADD_ASSIGN()) {
-    return "+=";
+    return std::string("+=");
   }
   if (ctx->SUB_ASSIGN()) {
-    return "-=";
+    return std::string("-=");
   }
   if (ctx->MULT_ASSIGN()) {
-    return "*=";
+    return std::string("*=");
   }
   if (ctx->DIV_ASSIGN()) {
-    return "/=";
+    return std::string("/=");
   }
   if (ctx->IDIV_ASSIGN()) {
-    return "//=";
+    return std::string("//=");
   }
   if (ctx->MOD_ASSIGN()) {
-    return "%=";
+    return std::string("%=");
   }
   throw std::runtime_error("Invalid augmented assignment operator");
 }
@@ -673,22 +674,22 @@ std::any EvalVisitor::visitComparison(Python3Parser::ComparisonContext *ctx) {
 
 std::any EvalVisitor::visitComp_op(Python3Parser::Comp_opContext *ctx) {
   if (ctx->LESS_THAN()) {
-    return "<";
+    return std::string("<");
   }
   if (ctx->GREATER_THAN()) {
-    return ">";
+    return std::string(">");
   }
   if (ctx->EQUALS()) {
-    return "==";
+    return std::string("==");
   }
   if (ctx->GT_EQ()) {
-    return ">=";
+    return std::string(">=");
   }
   if (ctx->LT_EQ()) {
-    return "<=";
+    return std::string("<=");
   }
   if (ctx->NOT_EQ_2()) {
-    return "!=";
+    return std::string("!=");
   }
   throw std::runtime_error("Invalid comparison operator");
 }
@@ -700,12 +701,16 @@ std::any EvalVisitor::visitArith_expr(Python3Parser::Arith_exprContext *ctx) {
   if (terms_count == 1) {
     return result;
   }
+  // std::cerr << "Visiting arith_expr" << std::endl;
   auto addorsubOps = ctx->addorsub_op();
   result = getVariable(result);
   for (size_t i = 0; i < addorsubOps.size(); ++i) {
     auto nextValue = visit(terms[i + 1]);
     nextValue = getVariable(nextValue);
+    // auto tmp = visit(addorsubOps[i]);
+    // std::cerr << tmp.type().name() << std::endl;
     auto op = std::any_cast<std::string>(visit(addorsubOps[i]));
+    // std::cerr << "Visiting arith_expr operator" << std::endl;
     result = operate(op, result, nextValue);
   }
   return result;
@@ -713,10 +718,10 @@ std::any EvalVisitor::visitArith_expr(Python3Parser::Arith_exprContext *ctx) {
 
 std::any EvalVisitor::visitAddorsub_op(Python3Parser::Addorsub_opContext *ctx) {
   if (ctx->ADD()) {
-    return "+";
+    return std::string("+");
   }
   if (ctx->MINUS()) {
-    return "-";
+    return std::string("-");
   }
   throw std::runtime_error("Invalid add or sub operator");
 }
@@ -743,16 +748,16 @@ std::any EvalVisitor::visitTerm(Python3Parser::TermContext *ctx) {
 
 std::any EvalVisitor::visitMuldivmod_op(Python3Parser::Muldivmod_opContext *ctx) {
   if (ctx->STAR()) {
-    return "*";
+    return std::string("*");
   }
   if (ctx->DIV()) {
-    return "/";
+    return std::string("/");
   }
   if (ctx->IDIV()) {
-    return "//";
+    return std::string("//");
   }
   if (ctx->MOD()) {
-    return "%";
+    return std::string("%");
   }
   throw std::runtime_error("Invalid mul/div/mod operator");
 }
