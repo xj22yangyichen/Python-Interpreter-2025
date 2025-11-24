@@ -314,12 +314,12 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == ">=") {
-    auto result = std::any_cast<bool>(operate("<", right, left));
+    auto result = std::any_cast<bool>(operate(std::string("<"), left, right));
     return std::any(!result);
   }
 
   if (op == "<=") {
-    auto result = std::any_cast<bool>(operate(">", right, left));
+    auto result = std::any_cast<bool>(operate(std::string(">"), left, right));
     return std::any(!result);
   }
 
