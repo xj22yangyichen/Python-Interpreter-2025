@@ -11,14 +11,20 @@
 #include "Python3ParserBaseVisitor.h"
 
 // Structure to hold argument information for function calls
-struct Argument {
+struct FunctionArgument {
   std::string name;
   std::any default_value;
 };
 
+struct Argument {
+  int id;
+  std::string name;
+  std::any value;
+};
+
 // Structure to hold function information
 struct Function {
-  std::vector<Argument> parameters;
+  std::vector<FunctionArgument> parameters;
   Python3Parser::SuiteContext* body;
 };
 
@@ -45,10 +51,10 @@ private:
   std::any operate(const std::string &op, std::any left, std::any right);
 
   // Type conversion helpers
-  std::any to_int(const std::any &value);
-  std::any to_bool(const std::any &value);
-  std::any to_double(const std::any &value);
-  std::any to_string(const std::any &value);
+  std::any to_int(std::any value);
+  std::any to_bool(std::any value);
+  std::any to_double(std::any value);
+  std::any to_string(std::any value);
 
   // Print function
   std::any print(const std::vector<std::any> &args);

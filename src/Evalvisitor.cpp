@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-std::any EvalVisitor::to_int(const std::any &value) {
+std::any EvalVisitor::to_int(std::any value) {
   sjtu::int2048 ret;
   if (auto val = std::any_cast<sjtu::int2048>(&value)) {
     ret = *val;
@@ -14,8 +14,12 @@ std::any EvalVisitor::to_int(const std::any &value) {
   if (auto val = std::any_cast<double>(&value)) {
     ret = static_cast<int>(*val);
   }
-  if (auto val = std::any_cast<std::string>(&value)) {
-    ret.read(*val);
+  if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
+    std::string tmp;
+    for (auto i : *val) {
+      tmp += i;
+    }
+    ret.read(tmp);
   }
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val ? 1 : 0;
@@ -23,21 +27,28 @@ std::any EvalVisitor::to_int(const std::any &value) {
   return std::any(ret);
 }
 
-std::any EvalVisitor::to_bool(const std::any &value) {
+std::any EvalVisitor::to_bool(std::any value) {
   bool ret = false;
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val;
-  } else if (auto val = std::any_cast<sjtu::int2048>(&value)) {
+  }
+  if (auto val = std::any_cast<sjtu::int2048>(&value)) {
     ret = !(*val == sjtu::int2048(0));
-  } else if (auto val = std::any_cast<double>(&value)) {
+  }
+  if (auto val = std::any_cast<double>(&value)) {
     ret = (*val != 0.0);
-  } else if (auto val = std::any_cast<std::string>(&value)) {
-    ret = !val->empty();
+  }
+  if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
+    std::string tmp;
+    for (auto i : *val) {
+      tmp += i;
+    }
+    ret = !tmp.empty();
   }
   return std::any(ret);
 }
 
-std::any EvalVisitor::to_double(const std::any &value) {
+std::any EvalVisitor::to_double(std::any value) {
   double ret = 0.0;
   if (auto val = std::any_cast<double>(&value)) {
     ret = *val;
@@ -45,8 +56,12 @@ std::any EvalVisitor::to_double(const std::any &value) {
   if (auto val = std::any_cast<sjtu::int2048>(&value)) {
     ret = val->to_double();
   }
-  if (auto val = std::any_cast<std::string>(&value)) {
-    ret = std::stod(*val);
+  if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
+    std::string tmp;
+    for (auto i : *val) {
+      tmp += i;
+    }
+    ret = std::stod(tmp);
   }
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val ? 1.0 : 0.0;
@@ -54,11 +69,11 @@ std::any EvalVisitor::to_double(const std::any &value) {
   return std::any(ret);
 }
 
-std::any EvalVisitor::to_string(const std::any &value) {
-  std::string ret;
-  if (auto val = std::any_cast<std::string>(&value)) {
-    ret = *val;
+std::any EvalVisitor::to_string(std::any value) {
+  if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
+    return std::any(*val);
   }
+  std::string ret;
   if (auto val = std::any_cast<sjtu::int2048>(&value)) {
     ret = val->to_string();
   }
@@ -68,10 +83,12 @@ std::any EvalVisitor::to_string(const std::any &value) {
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val ? "True" : "False";
   }
-  return std::any(ret);
+  return std::any(std::vector<std::string>{ret});
 }
 
 std::any EvalVisitor::print(const std::vector<std::any> &args_) {
+  // unzip tuples
+  // std::cerr << "Print function called with " << args_.size() << " arguments." << std::endl;
   std::vector<std::any> args;
   for (auto i : args_) {
     if (auto vec = std::any_cast<std::vector<std::any>>(&i)) {
@@ -84,8 +101,11 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
   }
   for (size_t i = 0; i < args.size(); ++i) {
     if (i > 0) std::cout << " ";
-    if (auto val = std::any_cast<std::string>(&args[i])) {
-      std::cout << *val;
+    if (auto val = std::any_cast<std::vector<std::string>>(&args[i])) {
+      // std::cerr << "Printing string value." << std::endl;
+      for (auto &s : *val) {
+        std::cout << s;
+      }
     } else if (auto val = std::any_cast<sjtu::int2048>(&args[i])) {
       std::cout << *val;
     } else if (auto val = std::any_cast<double>(&args[i])) {
@@ -158,30 +178,19 @@ void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
 }
 
 std::any EvalVisitor::operate(const std::string &op, std::any left, std::any right) {
-  if (auto leftstr = std::any_cast<std::vector<std::any>>(&left)) {
-    std::string result;
-    for (size_t i = 0; i < leftstr->size(); ++i) {
-      auto elemStr = to_string((*leftstr)[i]);
-      result += std::any_cast<std::string>(elemStr);
-    }
-    left = std::any(result);
-  }
-  if (auto rightstr = std::any_cast<std::vector<std::any>>(&right)) {
-    std::string result;
-    for (size_t i = 0; i < rightstr->size(); ++i) {
-      auto elemStr = to_string((*rightstr)[i]);
-      result += std::any_cast<std::string>(elemStr);
-    }
-    right = std::any(result);
-  }
-
+  // std::cerr << "Operating: " << op << std::endl;
+  // std::cerr << "Left type: " << left.type().name() << ", Right type: " << right.type().name() << std::endl;
   if (op == "+") {
-    if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
-      auto leftStr = to_string(left);
-      auto rightStr = to_string(right);
-      return std::any(std::any_cast<std::string>(leftStr) + std::any_cast<std::string>(rightStr));
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(std::vector<std::string>)) {
+      // std::cerr << "String concatenation operation" << std::endl;
+      std::vector<std::string> result;
+      auto leftVec = std::any_cast<std::vector<std::string>>(left);
+      auto rightVec = std::any_cast<std::vector<std::string>>(right);
+      result.insert(result.end(), leftVec.begin(), leftVec.end());
+      result.insert(result.end(), rightVec.begin(), rightVec.end());
+      return std::any(result);
     }
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for +: 'str' and non-str");
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
@@ -195,7 +204,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "-") {
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for -: 'str'");
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
@@ -209,24 +218,22 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "*") {
-    if (right.type() == typeid(std::string) && left.type() == typeid(sjtu::int2048)) {
+    if (right.type() == typeid(std::vector<std::string>) && left.type() == typeid(sjtu::int2048)) {
       std::swap(left, right);
     }
-    if (left.type() == typeid(std::string) && right.type() == typeid(sjtu::int2048)) {
-      auto leftStr = to_string(left);
-      auto rightInt = to_int(right);
-      std::string result = "";
-      if (std::any_cast<sjtu::int2048>(rightInt) <= sjtu::int2048(0)) {
-        return std::any(result);
-      } else {
-        sjtu::int2048 times = std::any_cast<sjtu::int2048>(rightInt);
-        for (sjtu::int2048 i = sjtu::int2048(0); i < times; i += sjtu::int2048(1)) {
-          result += std::any_cast<std::string>(leftStr);
-        }
-        return std::any(result);
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(sjtu::int2048)) {
+      auto strVec = std::any_cast<std::vector<std::string>>(left);
+      auto times = std::any_cast<sjtu::int2048>(right);
+      if (times <= sjtu::int2048(0)) {
+        return std::any(std::vector<std::string>{""});
       }
+      std::vector<std::string> result;
+      for (sjtu::int2048 i = sjtu::int2048(0); i < times; i += sjtu::int2048(1)) {
+        result.insert(result.end(), strVec.begin(), strVec.end());
+      }
+      return std::any(result);
     }
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for *: 'str' and non-int");
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
@@ -240,7 +247,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "/") {
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for /: 'str'");
     }
     auto leftVal = to_double(left);
@@ -252,7 +259,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "//") {
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for //: 'str'");
     }
     if (left.type() == typeid(sjtu::int2048) && right.type() == typeid(sjtu::int2048)) {
@@ -272,7 +279,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "%") {
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for %: 'str'");
     }
     if (left.type() == typeid(sjtu::int2048) && right.type() == typeid(sjtu::int2048)) {
@@ -292,12 +299,17 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == ">") {
-    if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
-      auto leftStr = to_string(left);
-      auto rightStr = to_string(right);
-      return std::any(std::any_cast<std::string>(leftStr) > std::any_cast<std::string>(rightStr));
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(std::vector<std::string>)) {
+      std::string leftStr, rightStr;
+      for (auto i : std::any_cast<std::vector<std::string>>(left)) {
+        leftStr += i;
+      }
+      for (auto i : std::any_cast<std::vector<std::string>>(right)) {
+        rightStr += i;
+      }
+      return std::any(leftStr > rightStr);
     }
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: '>' not supported between instances of 'str' and non-str");
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
@@ -311,12 +323,17 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "<") {
-    if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
-      auto leftStr = to_string(left);
-      auto rightStr = to_string(right);
-      return std::any(std::any_cast<std::string>(leftStr) < std::any_cast<std::string>(rightStr));
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(std::vector<std::string>)) {
+      std::string leftStr, rightStr;
+      for (auto i : std::any_cast<std::vector<std::string>>(left)) {
+        leftStr += i;
+      }
+      for (auto i : std::any_cast<std::vector<std::string>>(right)) {
+        rightStr += i;
+      }
+      return std::any(leftStr < rightStr);
     }
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: '<' not supported between instances of 'str' and non-str");
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
@@ -340,10 +357,15 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
   }
 
   if (op == "==") {
-    if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
-      auto leftStr = to_string(left);
-      auto rightStr = to_string(right);
-      return std::any(std::any_cast<std::string>(leftStr) == std::any_cast<std::string>(rightStr));
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(std::vector<std::string>)) {
+      std::string leftStr, rightStr;
+      for (auto i : std::any_cast<std::vector<std::string>>(left)) {
+        leftStr += i;
+      }
+      for (auto i : std::any_cast<std::vector<std::string>>(right)) {
+        rightStr += i;
+      }
+      return std::any(leftStr == rightStr);
     }
     if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
       return std::any(false);
@@ -386,7 +408,7 @@ std::any EvalVisitor::visitFile_input(Python3Parser::File_inputContext *ctx) {
 std::any EvalVisitor::visitFuncdef(Python3Parser::FuncdefContext *ctx) {
   std::string funcName = ctx->NAME()->getText();
   auto paramsCtx = visit(ctx->parameters());
-  auto typedArgsListCtx = std::any_cast<std::vector<Argument>>(paramsCtx);
+  auto typedArgsListCtx = std::any_cast<std::vector<FunctionArgument>>(paramsCtx);
   Function func;
   func.parameters = typedArgsListCtx;
   func.body = ctx->suite();
@@ -398,19 +420,19 @@ std::any EvalVisitor::visitParameters(Python3Parser::ParametersContext *ctx) {
   if (ctx->typedargslist()) {
     return visit(ctx->typedargslist());
   }
-  return std::vector<Argument>{};
+  return std::vector<FunctionArgument>{};
 }
 
 std::any EvalVisitor::visitTypedargslist(Python3Parser::TypedargslistContext *ctx) {
   // all parameters' names are in tfpdef, while some may have default values
   auto parameters = ctx->tfpdef();
   auto parameters_with_defaults = ctx->test();
-  std::vector<Argument> args;
+  std::vector<FunctionArgument> args;
   size_t total_params = parameters.size();
   size_t defaults_count = parameters_with_defaults.size();
   size_t non_defaults_count = total_params - defaults_count;
   for (size_t i = 0; i < total_params; ++i) {
-    Argument arg;
+    FunctionArgument arg;
     auto name = visit(parameters[i]);
     try {
       arg.name = std::any_cast<std::string>(name);
@@ -476,6 +498,8 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
       for (int i = 0; i < varList.size(); ++i) {
         auto varName = std::any_cast<std::string>(varList[i]);
         setVariable(varName, value[i]);
+        // std::cerr << "Assigned variable '" << varName << "'" << std::endl;
+        // std::cerr << "Type of assigned value: " << value[i].type().name() << std::endl;
       }
     }
   }
@@ -718,13 +742,12 @@ std::any EvalVisitor::visitArith_expr(Python3Parser::Arith_exprContext *ctx) {
     return result;
   }
   // std::cerr << "Visiting arith_expr" << std::endl;
+  // std::cerr << "Arith_expr first term type: " << result.type().name() << std::endl;
   auto addorsubOps = ctx->addorsub_op();
   result = getVariable(result);
   for (size_t i = 0; i < addorsubOps.size(); ++i) {
     auto nextValue = visit(terms[i + 1]);
     nextValue = getVariable(nextValue);
-    // auto tmp = visit(addorsubOps[i]);
-    // std::cerr << tmp.type().name() << std::endl;
     auto op = std::any_cast<std::string>(visit(addorsubOps[i]));
     // std::cerr << "Visiting arith_expr operator" << std::endl;
     result = operate(op, result, nextValue);
@@ -749,6 +772,7 @@ std::any EvalVisitor::visitTerm(Python3Parser::TermContext *ctx) {
   if (factors_count == 1) {
     // std::cerr << "Term with single factor" << std::endl;
     // std::cerr << std::any_cast<std::string>(to_string(result)) << std::endl;
+    // std::cerr << "Term single factor type: " << result.type().name() << std::endl;
     return result;
   }
   auto muldivmodOps = ctx->muldivmod_op();
@@ -813,7 +837,9 @@ std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
     // if (auto vec = std::any_cast<std::vector<std::any>>(&tmp)) {
     //   std::cerr << "Visiting factor returning vector of size: " << vec->size() << std::endl;
     // }
-    return visit(ctx->atom_expr());
+    auto tmp = visit(ctx->atom_expr());
+    // std::cerr << "Factor atom_expr type: " << tmp.type().name() << std::endl;
+    return tmp;
   }
   throw std::runtime_error("Invalid factor");
 }
@@ -821,6 +847,10 @@ std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
 std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
   // std::cerr << "Visiting atom_expr" << std::endl;
   auto atomCtx = visit(ctx->atom());
+  // if (ctx->atom()->STRING(0)) {
+  //   std::cerr << "Atom expr returning string vector of size: " << std::any_cast<std::vector<std::string>>(atomCtx).size() << std::endl;
+  // }
+  // std::cerr << "Atom type: " << atomCtx.type().name() << std::endl;
   if (atomCtx.type() == typeid(std::string) && ctx->trailer()) {
     // function call
     std::string funcName = std::any_cast<std::string>(atomCtx);
@@ -829,7 +859,7 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
       auto trailerCtx = visit(ctx->trailer());
       std::vector<std::any> argValues;
       for (auto &argCtx : std::any_cast<std::vector<Argument>>(trailerCtx)) {
-        argValues.push_back(argCtx.default_value);
+        argValues.push_back(argCtx.value);
       }
       return callSystemFunction(funcName, argValues);
     }
@@ -839,28 +869,25 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
     }
     Function func = funcIt->second;
     // evaluate arguments
-    std::vector<std::any> argValues;
     auto trailerCtx = visit(ctx->trailer());
+    std::map<std::string, std::any> argMap;
     for (auto &argCtx : std::any_cast<std::vector<Argument>>(trailerCtx)) {
-      argValues.push_back(argCtx.default_value);
-    }
-    // create new variable scope
-    variables.emplace_back();
-    // set parameters
-    size_t paramCount = func.parameters.size();
-    size_t argCount = argValues.size();
-    for (size_t i = 0; i < paramCount; ++i) {
-      Argument param = func.parameters[i];
-      if (i < argCount) {
-        setVariable(param.name, argValues[i]);
+      if (argCtx.name.empty()) {
+        argMap[func.parameters[argCtx.id].name] = argCtx.value;
       } else {
-        if (param.default_value.has_value()) {
-          setVariable(param.name, param.default_value);
-        } else {
-          throw std::runtime_error("TypeError: missing required positional argument '" + param.name + "'");
+        argMap[argCtx.name] = argCtx.value;
+      }
+      for (auto &param : func.parameters) {
+        if (argMap.find(param.name) == argMap.end()) {
+          if (param.default_value.has_value()) {
+            argMap[param.name] = param.default_value;
+          } else {
+            throw std::runtime_error("Function '" + funcName + "' missing required argument: " + param.name);
+          }
         }
       }
     }
+    variables.push_back(argMap);
     // execute function body
     auto result = visit(func.body);
     // pop variable scope
@@ -869,7 +896,11 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
       auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
       if (flowControl.first == 'r') { // return
         if (!flowControl.second.empty()) {
-          return flowControl.second[0];
+          if (flowControl.second.size() == 1) {
+            return flowControl.second[0];
+          } else {
+            return flowControl.second;
+          }
         } else {
           return std::any();
         }
@@ -906,7 +937,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
     }
   }
   if (ctx->STRING(0)) {
-    std::vector<std::any> ret;
+    std::vector<std::string> ret;
     auto strs = ctx->STRING();
     for (auto strCtx : strs) {
       std::string rawStr = strCtx->getText();
@@ -943,13 +974,13 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
       // std::cerr << "Processed string: " << processedStr << std::endl;
       ret.push_back(processedStr);
     }
-    return std::any(ret);
+    return ret;
   }
   if (ctx->TRUE()) {
-    return std::any(true);
+    return true;
   }
   if (ctx->FALSE()) {
-    return std::any(false);
+    return false;
   }
   if (ctx->NONE()) {
     return std::any();
@@ -985,7 +1016,7 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
       i++;
     } else if (j < tests.size()) {
       auto value = visit(tests[j]);
-      if (auto val = std::any_cast<std::vector<std::any>>(&value)) {
+      if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
         for (auto element : *val) {
           auto strVal = to_string(getVariable(element));
           result += std::any_cast<std::string>(strVal);
@@ -994,7 +1025,7 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
       j++;
     }
   }
-  return std::vector<std::any>{result};
+  return std::vector<std::string>{result};
 }
 
 std::any EvalVisitor::visitTestlist(Python3Parser::TestlistContext *ctx) {
@@ -1017,9 +1048,11 @@ std::any EvalVisitor::visitTestlist(Python3Parser::TestlistContext *ctx) {
 std::any EvalVisitor::visitArglist(Python3Parser::ArglistContext *ctx) {
   std::vector<Argument> arglist;
   auto args = ctx->argument();
-  for (auto argCtx : args) {
-    auto tmp = visit(argCtx);
-    arglist.push_back(std::any_cast<Argument>(tmp));
+  for (size_t i = 0; i < args.size(); ++i) {
+    auto argCtx = visit(args[i]);
+    Argument arg = std::any_cast<Argument>(argCtx);
+    arg.id = i;
+    arglist.push_back(arg);
   }
   return arglist;
 }
@@ -1028,11 +1061,11 @@ std::any EvalVisitor::visitArgument(Python3Parser::ArgumentContext *ctx) {
   Argument arg;
   auto tests = ctx->test();
   if (tests.size() == 1) {
-    arg.default_value = getVariable(visit(tests[0]));
+    arg.value = getVariable(visit(tests[0]));
   } else {
     // std::cerr << "Visiting argument with name and default value" << std::endl;
     arg.name = std::any_cast<std::string>(visit(tests[0]));
-    arg.default_value = getVariable(visit(tests[1]));
+    arg.value = getVariable(visit(tests[1]));
   }
   return arg;
 }
