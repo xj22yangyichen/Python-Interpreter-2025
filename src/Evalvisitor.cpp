@@ -158,7 +158,23 @@ void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
 }
 
 std::any EvalVisitor::operate(const std::string &op, std::any left, std::any right) {
-  // std::cerr << "Operating: " << op << std::endl;
+  if (auto leftstr = std::any_cast<std::vector<std::any>>(&left)) {
+    std::string result;
+    for (size_t i = 0; i < leftstr->size(); ++i) {
+      auto elemStr = to_string((*leftstr)[i]);
+      result += std::any_cast<std::string>(elemStr);
+    }
+    left = std::any(result);
+  }
+  if (auto rightstr = std::any_cast<std::vector<std::any>>(&right)) {
+    std::string result;
+    for (size_t i = 0; i < rightstr->size(); ++i) {
+      auto elemStr = to_string((*rightstr)[i]);
+      result += std::any_cast<std::string>(elemStr);
+    }
+    right = std::any(result);
+  }
+
   if (op == "+") {
     if (left.type() == typeid(std::string) && right.type() == typeid(std::string)) {
       auto leftStr = to_string(left);
