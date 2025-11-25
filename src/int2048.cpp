@@ -34,6 +34,7 @@ int2048::int2048(const int2048 &num) {
 }
 
 void int2048::read(const std::string &num) {
+  // std::cerr << "Reading int2048 from string: " << num << std::endl;
   int len = num.length();
   s.clear();
   if (len == 0 || (len == 1 && num[0] == '0') || (len == 2 && num == "-0")) {
@@ -107,6 +108,8 @@ double int2048::to_double() const {
 }
 
 int2048 add(int2048 a, const int2048 &b) {
+  // std::cerr << "Adding int2048 values" << std::endl;
+  // std::cerr << a.to_string() << " + " << b.to_string() << std::endl;
   if (a.sign == 0) return b;
   if (b.sign == 0) return a;
   if (a.sign != b.sign) {
@@ -131,6 +134,8 @@ int2048 add(int2048 a, const int2048 &b) {
     result.s.push_back(x % int2048::BASE);
     carry = x / int2048::BASE;
   }
+  
+  result.delete_leading_zeros();
   return result;
 }
 
@@ -295,7 +300,9 @@ int2048 get_high(const int2048 &num, size_t len) {
 
   result.s.assign(num.s.begin() + len, num.s.end());
   result.delete_leading_zeros();
-  result.sign = result.s.empty() ? 0 : 1;
+  if (!result.s.empty()) {
+    result.sign = 1;
+  }
   return result;
 }
 
@@ -305,7 +312,9 @@ int2048 get_low(const int2048 &num, size_t len) {
 
   result.s.assign(num.s.begin(), num.s.begin() + std::min(len, num.s.size()));
   result.delete_leading_zeros();
-  result.sign = result.s.empty() ? 0 : 1;
+  if (!result.s.empty()) {
+    result.sign = 1;
+  }
   return result;
 }
 
@@ -433,6 +442,9 @@ std::istream &operator>>(std::istream &in, int2048 &x) {
 }
 
 std::ostream &operator<<(std::ostream &out, const int2048 &x) {
+  // std::cerr << "Outputting int2048 value" << std::endl;
+  // std::cerr << "x.sign: " << x.sign << std::endl;
+  // std::cerr << "x.s size: " << x.s.size() << std::endl;
   if (x.sign == -1) out << '-';
   if (x.sign == 0) {
     out << '0';

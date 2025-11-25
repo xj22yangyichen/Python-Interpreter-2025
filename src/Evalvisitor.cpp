@@ -87,10 +87,11 @@ std::any EvalVisitor::to_string(std::any value) {
 }
 
 std::any EvalVisitor::print(const std::vector<std::any> &args_) {
-  // unzip tuples
   // std::cerr << "Print function called with " << args_.size() << " arguments." << std::endl;
+  // unzip tuples
   std::vector<std::any> args;
   for (auto i : args_) {
+    // std::cerr << "Argument type: " << i.type().name() << std::endl;
     if (auto vec = std::any_cast<std::vector<std::any>>(&i)) {
       for (auto j : *vec) {
         args.push_back(getVariable(j));
@@ -107,6 +108,7 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
         std::cout << s;
       }
     } else if (auto val = std::any_cast<sjtu::int2048>(&args[i])) {
+      // std::cerr << "Printing int2048 value." << std::endl;
       std::cout << *val;
     } else if (auto val = std::any_cast<double>(&args[i])) {
       std::cout << *val;
@@ -488,7 +490,7 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
     auto currentValue = getVariable(var); // left-hand side current value
     // operate after removing '=' from operator
-    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value[0]);
+    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, getVariable(value[0]));
     setVariable(varName, newValue);
   } else {
     // std::cerr << "Visiting normal assignment" << std::endl;
@@ -551,15 +553,19 @@ std::any EvalVisitor::visitContinue_stmt(Python3Parser::Continue_stmtContext *ct
 }
 
 std::any EvalVisitor::visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) {
+  // std::cerr << "Visiting return statement" << std::endl;
   std::vector<std::any> returnValues;
   if (ctx->testlist()) {
-    auto tests = ctx->testlist()->test();
-    for (auto test : tests) {
+    auto tests = visit(ctx->testlist());
+    for (auto &test : std::any_cast<std::vector<std::any>>(tests)) {
+      // std::cerr << "Processing return value of type: " << test.type().name() << std::endl;
       auto value = getVariable(test);
+      // std::cerr << "After getVariable, type: " << value.type().name() << std::endl;
       returnValues.push_back(value);
     }
+    return std::pair<char, std::vector<std::any>>('r', returnValues);
   }
-  return std::pair<char, std::vector<std::any>>('r', returnValues);
+  return std::pair<char, std::vector<std::any>>('r', {});
 }
 
 std::any EvalVisitor::visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) {
@@ -877,13 +883,13 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
       } else {
         argMap[argCtx.name] = argCtx.value;
       }
-      for (auto &param : func.parameters) {
-        if (argMap.find(param.name) == argMap.end()) {
-          if (param.default_value.has_value()) {
-            argMap[param.name] = param.default_value;
-          } else {
-            throw std::runtime_error("Function '" + funcName + "' missing required argument: " + param.name);
-          }
+    }
+    for (auto &param : func.parameters) {
+      if (argMap.find(param.name) == argMap.end()) {
+        if (param.default_value.has_value()) {
+          argMap[param.name] = param.default_value;
+        } else {
+          throw std::runtime_error("Function '" + funcName + "' missing required argument: " + param.name);
         }
       }
     }
@@ -897,6 +903,8 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
       if (flowControl.first == 'r') { // return
         if (!flowControl.second.empty()) {
           if (flowControl.second.size() == 1) {
+            // std::cerr << "Function '" << funcName << "' returning single value" << std::endl;
+            // std::cerr << "Return value type: " << flowControl.second[0].type().name() << std::endl;
             return flowControl.second[0];
           } else {
             return flowControl.second;
