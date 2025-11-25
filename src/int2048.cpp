@@ -408,6 +408,13 @@ int2048 operator/(int2048 a, const int2048 &b) {
   a.sign = 1;
   int2048 abs_b = b;
   abs_b.sign = 1;
+  if (a < abs_b) {
+    if (result_sign == -1) {
+      return int2048(-1);
+    } else {
+      return int2048(0);
+    }
+  }
 
   auto [quotient, remainder] = divide(a, abs_b);
   quotient.sign = result_sign;
