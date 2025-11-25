@@ -687,7 +687,7 @@ std::any EvalVisitor::visitSuite(Python3Parser::SuiteContext *ctx) {
   for (auto stmt : statements) {
     auto result = visit(stmt);
     if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
-      return result;
+      return std::any_cast<std::pair<char, std::vector<std::any>>>(result);
     }
   }
   return std::any(None{});
