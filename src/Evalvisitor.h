@@ -29,6 +29,9 @@ struct Function {
   Python3Parser::SuiteContext* body;
 };
 
+// This structure does what you think it does.
+struct None {};
+
 class EvalVisitor : public Python3ParserBaseVisitor {
 private:
   // Stack of variable scopes

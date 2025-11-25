@@ -83,7 +83,7 @@ std::any EvalVisitor::to_string(std::any value) {
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val ? "True" : "False";
   }
-  if (!value.has_value()) {
+  if (auto val = std::any_cast<None>(&value)) {
     ret = "None";
   }
   return std::any(std::vector<std::string>{ret});
@@ -117,8 +117,7 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
       std::cout << *val;
     } else if (auto val = std::any_cast<bool>(&args[i])) {
       std::cout << std::setprecision(6) << (*val ? "True" : "False");
-    } else {
-      // std::cerr << "Unknown type in print function" << std::endl;
+    } else if (auto val = std::any_cast<None>(&args[i])) {
       std::cout << "None";
     }
   }
@@ -394,6 +393,13 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
       auto rightVal = to_double(right);
       return std::any(std::any_cast<double>(leftVal) == std::any_cast<double>(rightVal));
     }
+    if (left.type() == typeid(None) || right.type() == typeid(None)) {
+      if (left.type() == typeid(None) && right.type() == typeid(None)) {
+        return std::any(true);
+      } else {
+        return std::any(false);
+      }
+    }
     auto leftVal = to_int(left);
     auto rightVal = to_int(right);
     return std::any(std::any_cast<sjtu::int2048>(leftVal) == std::any_cast<sjtu::int2048>(rightVal));
@@ -653,7 +659,7 @@ std::any EvalVisitor::visitSuite(Python3Parser::SuiteContext *ctx) {
       return result;
     }
   }
-  return std::any();
+  return std::any(None{});
 }
 
 std::any EvalVisitor::visitTest(Python3Parser::TestContext *ctx) {
@@ -917,7 +923,7 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
     variables.push_back(argMap);
     // execute function body
     auto result = visit(func.body);
-    auto ret = std::any();
+    auto ret = std::any(None{});
     if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
       auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
       if (flowControl.first == 'r') { // return
@@ -929,6 +935,8 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
           } else {
             ret = flowControl.second;
           }
+        } else {
+          ret = std::any(None{});
         }
       }
     }
@@ -1011,7 +1019,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
     return false;
   }
   if (ctx->NONE()) {
-    return std::any();
+    return std::any(None{});
   }
   if (ctx->test()) {
     return visit(ctx->test());
