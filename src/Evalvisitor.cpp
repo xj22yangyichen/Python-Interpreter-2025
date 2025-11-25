@@ -107,9 +107,34 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
     if (i > 0) std::cout << " ";
     if (auto val = std::any_cast<std::vector<std::string>>(&args[i])) {
       // std::cerr << "Printing string value." << std::endl;
+      std::string content;
       for (auto &s : *val) {
-        std::cout << s;
+        content += s;
       }
+      std::string processedStr;
+      for (size_t i = 0; i < content.length(); ++i) {
+        if (content[i] == '\\' && i + 1 < content.length()) {
+          char nextChar = content[i + 1];
+          if (nextChar == 'n') {
+            processedStr += '\n';
+            i++;
+          } else if (nextChar == 't') {
+            processedStr += '\t';
+            i++;
+          } else if (nextChar == 'r') {
+            processedStr += '\r';
+            i++;
+          } else if (nextChar == '\\') {
+            processedStr += '\\';
+            i++;
+          } else {
+            processedStr += content[i];
+          }
+        } else {
+          processedStr += content[i];
+        }
+      }
+      std::cout << processedStr;
     } else if (auto val = std::any_cast<sjtu::int2048>(&args[i])) {
       // std::cerr << "Printing int2048 value." << std::endl;
       std::cout << *val;
