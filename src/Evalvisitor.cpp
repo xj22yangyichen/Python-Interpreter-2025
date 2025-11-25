@@ -540,7 +540,6 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
     op = op.substr(0, op.size() - 1); // remove '='
     for (int i = 0; i < var.size(); ++i) {
-      // auto varName = std::any_cast<std::string>(var[i]);
       if (auto varNamePtr = std::any_cast<std::string>(&var[i])) {
         std::string varName = *varNamePtr;
         auto currentValue = getVariable(varName);
@@ -554,8 +553,10 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
       // std::cerr << "Assigning to variable(s) in testlist index " << i << std::endl;
       auto varList = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[i]));
       for (int j = 0; j < varList.size(); ++j) {
-        auto varName = std::any_cast<std::string>(varList[j]);
-        setVariable(varName, value[j]);
+        if (auto varNamePtr = std::any_cast<std::string>(&varList[j])) {
+          std::string varName = *varNamePtr;
+          setVariable(varName, value[j]);
+        }
         // std::cerr << "Assigned variable '" << varName << "'" << std::endl;
         // std::cerr << "Type of assigned value: " << value[i].type().name() << std::endl;
       }
