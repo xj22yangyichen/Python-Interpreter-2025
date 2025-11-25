@@ -439,7 +439,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
 }
 
 EvalVisitor::EvalVisitor() {
-  variables.emplace_back();
+  variables.emplace_back(std::map<std::string, std::any>{});
 }
 
 std::any EvalVisitor::visitFile_input(Python3Parser::File_inputContext *ctx) {
@@ -536,13 +536,15 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
   // std::cerr << "Assigned value type: " << value.type().name() << std::endl;
   // auto testlistCtx = std::any_cast<std::vector<std::any>>(value);
   if (ctx->augassign()) {
-    auto var = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[0]))[0];
-    auto varName = std::any_cast<std::string>(var);
+    auto var = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[0]));
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
-    auto currentValue = getVariable(var); // left-hand side current value
-    // operate after removing '=' from operator
-    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value[0]);
-    setVariable(varName, newValue);
+    op = op.substr(0, op.size() - 1); // remove '='
+    for (int i = 0; i < var.size(); ++i) {
+      auto varName = std::any_cast<std::string>(var[i]);
+      auto currentValue = getVariable(varName);
+      auto newValue = operate(op, currentValue, value[i]);
+      setVariable(varName, newValue);
+    }
   } else {
     // std::cerr << "Visiting normal assignment" << std::endl;
     for (int i = testlist_ctx.size() - 2; i >= 0; --i) {
