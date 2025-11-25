@@ -158,23 +158,37 @@ std::any EvalVisitor::callSystemFunction(const std::string &name, const std::vec
 std::any EvalVisitor::getVariable(std::any const &val) {
   if (auto namePtr = std::any_cast<std::string>(&val)) {
     std::string name = *namePtr;
-    for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
-      auto found = it->find(name);
-      if (found != it->end()) {
-        return found->second;
-      }
+    if (variables.front().find(name) != variables.front().end()) {
+      return variables.front().at(name);
     }
+    if (variables.back().find(name) != variables.back().end()) {
+      return variables.back().at(name);
+    }
+    // for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
+    //   auto found = it->find(name);
+    //   if (found != it->end()) {
+    //     return found->second;
+    //   }
+    // }
   }
   return val;
 }
 
 void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
-  for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
-    if (it->find(name) != it->end()) {
-      it->at(name) = value;
-      return;
-    }
+  if (variables.front().find(name) != variables.front().end()) {
+    variables.front()[name] = value;
+    return;
   }
+  if (variables.back().find(name) != variables.back().end()) {
+    variables.back()[name] = value;
+    return;
+  }
+  // for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
+  //   if (it->find(name) != it->end()) {
+  //     it->at(name) = value;
+  //     return;
+  //   }
+  // }
   // If variable not found in any scope, set it in the current scope
   variables.back()[name] = value;
 }
@@ -482,6 +496,9 @@ std::any EvalVisitor::visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) {
 std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
   auto testlist_ctx = ctx->testlist();
   auto value = std::any_cast<std::vector<std::any>>(visit(testlist_ctx.back()));
+  for (auto &valueCtx : value) {
+    valueCtx = getVariable(valueCtx);
+  }
   // std::cerr << "Assigned value type: " << value.type().name() << std::endl;
   // auto testlistCtx = std::any_cast<std::vector<std::any>>(value);
   if (ctx->augassign()) {
@@ -490,16 +507,16 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
     auto op = std::any_cast<std::string>(visit(ctx->augassign()));
     auto currentValue = getVariable(var); // left-hand side current value
     // operate after removing '=' from operator
-    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, getVariable(value[0]));
+    auto newValue = operate(op.substr(0, op.length() - 1), currentValue, value[0]);
     setVariable(varName, newValue);
   } else {
     // std::cerr << "Visiting normal assignment" << std::endl;
     for (int i = testlist_ctx.size() - 2; i >= 0; --i) {
       // std::cerr << "Assigning to variable(s) in testlist index " << i << std::endl;
       auto varList = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[i]));
-      for (int i = 0; i < varList.size(); ++i) {
-        auto varName = std::any_cast<std::string>(varList[i]);
-        setVariable(varName, value[i]);
+      for (int j = 0; j < varList.size(); ++j) {
+        auto varName = std::any_cast<std::string>(varList[j]);
+        setVariable(varName, value[j]);
         // std::cerr << "Assigned variable '" << varName << "'" << std::endl;
         // std::cerr << "Type of assigned value: " << value[i].type().name() << std::endl;
       }
@@ -869,6 +886,7 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
       }
       return callSystemFunction(funcName, argValues);
     }
+    // std::cerr << "Calling function '" << funcName << "'" << std::endl;
     auto funcIt = functions.find(funcName);
     if (funcIt == functions.end()) {
       throw std::runtime_error("Function '" + funcName + "' not defined");
@@ -896,8 +914,7 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
     variables.push_back(argMap);
     // execute function body
     auto result = visit(func.body);
-    // pop variable scope
-    variables.pop_back();
+    auto ret = std::any();
     if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
       auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
       if (flowControl.first == 'r') { // return
@@ -905,16 +922,16 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
           if (flowControl.second.size() == 1) {
             // std::cerr << "Function '" << funcName << "' returning single value" << std::endl;
             // std::cerr << "Return value type: " << flowControl.second[0].type().name() << std::endl;
-            return flowControl.second[0];
+            ret = flowControl.second[0];
           } else {
-            return flowControl.second;
+            ret = flowControl.second;
           }
-        } else {
-          return std::any();
         }
       }
     }
-    return std::any();
+    // pop variable scope
+    variables.pop_back();
+    return ret;
   }
   return atomCtx;
 }
