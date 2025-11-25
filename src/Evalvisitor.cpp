@@ -1022,7 +1022,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
 std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ctx) {
   auto strings = ctx->FORMAT_STRING_LITERAL();
   auto tests = ctx->testlist();
-  std::string result;
+  std::vector<std::string> result;
   int i = 0, j = 0;
   while (i < strings.size() || j < tests.size()) {
     if (i < strings.size() && (j >= tests.size() || strings[i]->getSymbol()->getStartIndex() < tests[j]->getStart()->getStartIndex())) {
@@ -1037,14 +1037,15 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
         str.replace(pos, 2, "}");
         pos = str.find("}}", pos + 1);
       }
-      result += str;
+      result.push_back(str);
       i++;
     } else if (j < tests.size()) {
       auto value = visit(tests[j]);
-      if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
+      if (auto val = std::any_cast<std::vector<std::any>>(&value)) {
         for (auto element : *val) {
           auto strVal = to_string(getVariable(element));
-          result += std::any_cast<std::string>(strVal);
+          auto strs = std::any_cast<std::vector<std::string>>(strVal);
+          result.insert(result.end(), strs.begin(), strs.end());
         }
       }
       j++;
