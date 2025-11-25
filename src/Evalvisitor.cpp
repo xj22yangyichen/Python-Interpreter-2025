@@ -36,7 +36,7 @@ std::any EvalVisitor::to_bool(std::any value) {
     ret = !(*val == sjtu::int2048(0));
   }
   if (auto val = std::any_cast<double>(&value)) {
-    ret = (*val != 0.0);
+    ret = static_cast<bool>(*val);
   }
   if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
     std::string tmp;
@@ -82,6 +82,9 @@ std::any EvalVisitor::to_string(std::any value) {
   }
   if (auto val = std::any_cast<bool>(&value)) {
     ret = *val ? "True" : "False";
+  }
+  if (!value.has_value()) {
+    ret = "None";
   }
   return std::any(std::vector<std::string>{ret});
 }

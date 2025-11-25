@@ -10,12 +10,13 @@
 #include "int2048.h"
 #include "Python3ParserBaseVisitor.h"
 
-// Structure to hold argument information for function calls
+// Structure to hold argument information for function definitions
 struct FunctionArgument {
   std::string name;
   std::any default_value;
 };
 
+// Structure to hold argument information for function calls
 struct Argument {
   int id;
   std::string name;
