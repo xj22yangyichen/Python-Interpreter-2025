@@ -1066,10 +1066,11 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
 std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ctx) {
   auto strings = ctx->FORMAT_STRING_LITERAL();
   auto tests = ctx->testlist();
+  auto braces = ctx->OPEN_BRACE();
   std::vector<std::string> result;
   int i = 0, j = 0;
   while (i < strings.size() || j < tests.size()) {
-    if (i < strings.size() && (j >= tests.size() || strings[i]->getSymbol()->getStartIndex() < tests[j]->getStart()->getStartIndex())) {
+    if (i < strings.size() && (j >= tests.size() || strings[i]->getSymbol()->getTokenIndex() < braces[j]->getSymbol()->getTokenIndex())) {
       auto str = strings[i]->getText();
       auto pos = str.find("{{");
       while (pos != std::string::npos) {
