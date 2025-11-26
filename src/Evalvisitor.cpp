@@ -1041,7 +1041,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
         }
       }
       // std::cerr << "Processed string: " << processedStr << std::endl;
-      ret.push_back(content);
+      ret.push_back(processedStr);
     }
     return ret;
   }
@@ -1095,7 +1095,7 @@ std::any EvalVisitor::visitFormat_string(Python3Parser::Format_stringContext *ct
       j++;
     }
   }
-  return std::vector<std::string>{result};
+  return result;
 }
 
 std::any EvalVisitor::visitTestlist(Python3Parser::TestlistContext *ctx) {
