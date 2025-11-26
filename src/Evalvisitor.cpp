@@ -188,11 +188,11 @@ std::any EvalVisitor::callSystemFunction(const std::string &name, const std::vec
 std::any EvalVisitor::getVariable(std::any const &val) {
   if (auto namePtr = std::any_cast<std::string>(&val)) {
     std::string name = *namePtr;
-    if (variables.front().find(name) != variables.front().end()) {
-      return variables.front().at(name);
-    }
     if (variables.back().find(name) != variables.back().end()) {
       return variables.back().at(name);
+    }
+    if (variables.front().find(name) != variables.front().end()) {
+      return variables.front().at(name);
     }
     // for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
     //   auto found = it->find(name);
@@ -205,12 +205,12 @@ std::any EvalVisitor::getVariable(std::any const &val) {
 }
 
 void EvalVisitor::setVariable(const std::string &name, const std::any &value) {
-  if (variables.front().find(name) != variables.front().end()) {
-    variables.front()[name] = value;
-    return;
-  }
   if (variables.back().find(name) != variables.back().end()) {
     variables.back()[name] = value;
+    return;
+  }
+  if (variables.front().find(name) != variables.front().end()) {
+    variables.front()[name] = value;
     return;
   }
   // for (auto it = variables.rbegin(); it != variables.rend(); ++it) {
