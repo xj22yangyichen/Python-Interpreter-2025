@@ -97,7 +97,7 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
     // std::cerr << "Argument type: " << i.type().name() << std::endl;
     if (auto vec = std::any_cast<std::vector<std::any>>(&i)) {
       for (auto j : *vec) {
-        args.push_back(getVariable(j));
+        args.push_back(j);
       }
     } else {
       args.push_back(getVariable(i));
