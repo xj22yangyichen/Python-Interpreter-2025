@@ -279,6 +279,18 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
       }
       return std::any(result);
     }
+    if (left.type() == typeid(std::vector<std::string>) && right.type() == typeid(bool)) {
+      auto strVec = std::any_cast<std::vector<std::string>>(left);
+      auto times = std::any_cast<bool>(right) ? sjtu::int2048(1) : sjtu::int2048(0);
+      if (times <= sjtu::int2048(0)) {
+        return std::any(std::vector<std::string>{""});
+      }
+      std::vector<std::string> result;
+      for (sjtu::int2048 i = sjtu::int2048(0); i < times; i += sjtu::int2048(1)) {
+        result.insert(result.end(), strVec.begin(), strVec.end());
+      }
+      return std::any(result);
+    }
     if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for *: 'str' and non-int");
     }
