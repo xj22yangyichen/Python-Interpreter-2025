@@ -551,14 +551,17 @@ std::any EvalVisitor::visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) {
     // std::cerr << "Visiting normal assignment" << std::endl;
     for (int i = testlist_ctx.size() - 2; i >= 0; --i) {
       // std::cerr << "Assigning to variable(s) in testlist index " << i << std::endl;
-      auto varList = std::any_cast<std::vector<std::any>>(visit(testlist_ctx[i]));
-      for (int j = 0; j < varList.size(); ++j) {
-        if (auto varNamePtr = std::any_cast<std::string>(&varList[j])) {
-          std::string varName = *varNamePtr;
-          setVariable(varName, value[j]);
+      auto tests = visit(testlist_ctx[i]);
+      if (auto varListPtr = std::any_cast<std::vector<std::any>>(&tests)){
+        auto varList = *varListPtr;
+        for (int j = 0; j < varList.size(); ++j) {
+          if (auto varNamePtr = std::any_cast<std::string>(&varList[j])) {
+            std::string varName = *varNamePtr;
+            setVariable(varName, value[j]);
+          }
+          // std::cerr << "Assigned variable '" << varName << "'" << std::endl;
+          // std::cerr << "Type of assigned value: " << value[i].type().name() << std::endl;
         }
-        // std::cerr << "Assigned variable '" << varName << "'" << std::endl;
-        // std::cerr << "Type of assigned value: " << value[i].type().name() << std::endl;
       }
     }
   }
