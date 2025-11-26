@@ -876,10 +876,10 @@ std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
       if (value.type() == typeid(sjtu::int2048)) {
         return value;
       }
-      // if (value.type() == typeid(bool)) {
-      //   bool boolValue = std::any_cast<bool>(value);
-      //   return std::any(boolValue ? sjtu::int2048(1) : sjtu::int2048(0));
-      // }
+      if (value.type() == typeid(bool)) {
+        bool boolValue = std::any_cast<bool>(value);
+        return std::any(boolValue ? sjtu::int2048(1) : sjtu::int2048(0));
+      }
       throw std::runtime_error("TypeError: bad operand type for unary -");
     }
     if (ctx->MINUS()) {
@@ -890,10 +890,10 @@ std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
       if (value.type() == typeid(sjtu::int2048)) {
         return std::any(-std::any_cast<sjtu::int2048>(value));
       }
-      // if (value.type() == typeid(bool)) {
-      //   bool boolValue = std::any_cast<bool>(value);
-      //   return std::any(boolValue ? sjtu::int2048(-1) : sjtu::int2048(0));
-      // }
+      if (value.type() == typeid(bool)) {
+        bool boolValue = std::any_cast<bool>(value);
+        return std::any(boolValue ? sjtu::int2048(-1) : sjtu::int2048(0));
+      }
       throw std::runtime_error("TypeError: bad operand type for unary -");
     }
     return value;
@@ -1001,8 +1001,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
       return std::any(value);
     } else {
       // int
-      sjtu::int2048 value;
-      value.read(numText);
+      sjtu::int2048 value(numText);
       return std::any(value);
     }
   }
@@ -1042,7 +1041,7 @@ std::any EvalVisitor::visitAtom(Python3Parser::AtomContext *ctx) {
         }
       }
       // std::cerr << "Processed string: " << processedStr << std::endl;
-      ret.push_back(processedStr);
+      ret.push_back(content);
     }
     return ret;
   }
