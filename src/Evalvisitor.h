@@ -32,6 +32,11 @@ struct Function {
 // This structure does what you think it does.
 struct None {};
 
+struct Flow {
+  enum Type { BREAK, CONTINUE, RETURN } type;
+  std::vector<std::any> return_values;
+};
+
 class EvalVisitor : public Python3ParserBaseVisitor {
 private:
   // Stack of variable scopes

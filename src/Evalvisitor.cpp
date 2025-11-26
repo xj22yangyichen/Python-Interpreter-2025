@@ -591,7 +591,6 @@ std::any EvalVisitor::visitAugassign(Python3Parser::AugassignContext *ctx) {
 }
 
 std::any EvalVisitor::visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) {
-  std::pair<char, std::vector<std::any>> ret;
   if (ctx->break_stmt()) {
     return visit(ctx->break_stmt());
   }
@@ -605,16 +604,22 @@ std::any EvalVisitor::visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) {
 }
 
 std::any EvalVisitor::visitBreak_stmt(Python3Parser::Break_stmtContext *ctx) {
-  return std::pair<char, std::vector<std::any>>('b', {});
+  Flow flow;
+  flow.type = Flow::BREAK;
+  return flow;
 }
 
 std::any EvalVisitor::visitContinue_stmt(Python3Parser::Continue_stmtContext *ctx) {
-  return std::pair<char, std::vector<std::any>>('c', {});
+  Flow flow;
+  flow.type = Flow::CONTINUE;
+  return flow;
 }
 
 std::any EvalVisitor::visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) {
   // std::cerr << "Visiting return statement" << std::endl;
   std::vector<std::any> returnValues;
+  Flow flow;
+  flow.type = Flow::RETURN;
   if (ctx->testlist()) {
     auto tests = visit(ctx->testlist());
     for (auto &test : std::any_cast<std::vector<std::any>>(tests)) {
@@ -623,9 +628,10 @@ std::any EvalVisitor::visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) {
       // std::cerr << "After getVariable, type: " << value.type().name() << std::endl;
       returnValues.push_back(value);
     }
-    return std::pair<char, std::vector<std::any>>('r', returnValues);
+    flow.return_values = returnValues;
+    return flow;
   }
-  return std::pair<char, std::vector<std::any>>('r', {});
+  return flow;
 }
 
 std::any EvalVisitor::visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) {
@@ -668,13 +674,13 @@ std::any EvalVisitor::visitWhile_stmt(Python3Parser::While_stmtContext *ctx) {
     }
     auto bodyCtx = ctx->suite();
     auto result = visit(bodyCtx);
-    if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
-      auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
-      if (flowControl.first == 'b') { // break
+    if (result.type() == typeid(Flow)) {
+      auto flowControl = std::any_cast<Flow>(result);
+      if (flowControl.type == Flow::BREAK) { // break
         break;
-      } else if (flowControl.first == 'c') { // continue
+      } else if (flowControl.type == Flow::CONTINUE) { // continue
         continue;
-      } else if (flowControl.first == 'r') { // return
+      } else if (flowControl.type == Flow::RETURN) { // return
         return result;
       }
     }
@@ -689,8 +695,8 @@ std::any EvalVisitor::visitSuite(Python3Parser::SuiteContext *ctx) {
   auto statements = ctx->stmt();
   for (auto stmt : statements) {
     auto result = visit(stmt);
-    if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
-      return std::any_cast<std::pair<char, std::vector<std::any>>>(result);
+    if (result.type() == typeid(Flow)) {
+      return result;
     }
   }
   return std::any(None{});
@@ -961,16 +967,16 @@ std::any EvalVisitor::visitAtom_expr(Python3Parser::Atom_exprContext *ctx) {
     // execute function body
     auto result = visit(func.body);
     auto ret = std::any(None{});
-    if (result.type() == typeid(std::pair<char, std::vector<std::any>>)) {
-      auto flowControl = std::any_cast<std::pair<char, std::vector<std::any>>>(result);
-      if (flowControl.first == 'r') { // return
-        if (!flowControl.second.empty()) {
-          if (flowControl.second.size() == 1) {
+    if (result.type() == typeid(Flow)) {
+      auto flowControl = std::any_cast<Flow>(result);
+      if (flowControl.type == Flow::RETURN) { // return
+        if (!flowControl.return_values.empty()) {
+          if (flowControl.return_values.size() == 1) {
             // std::cerr << "Function '" << funcName << "' returning single value" << std::endl;
             // std::cerr << "Return value type: " << flowControl.second[0].type().name() << std::endl;
-            ret = flowControl.second[0];
+            ret = flowControl.return_values[0];
           } else {
-            ret = flowControl.second;
+            ret = flowControl.return_values;
           }
         } else {
           ret = std::any(None{});
