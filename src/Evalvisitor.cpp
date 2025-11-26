@@ -127,6 +127,9 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
           } else if (nextChar == '\\') {
             processedStr += '\\';
             i++;
+          } else if (nextChar == '\"') {
+            processedStr += '\"';
+            i++;
           } else {
             processedStr += content[i];
           }
