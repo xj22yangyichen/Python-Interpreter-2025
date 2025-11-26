@@ -320,20 +320,20 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
     if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       throw std::runtime_error("TypeError: unsupported operand type(s) for //: 'str'");
     }
-    if (left.type() == typeid(sjtu::int2048) && right.type() == typeid(sjtu::int2048)) {
-      auto leftVal = to_int(left);
-      auto rightVal = to_int(right);
-      if (std::any_cast<sjtu::int2048>(rightVal) == sjtu::int2048(0)) {
+    if (left.type() == typeid(double) || right.type() == typeid(double)) {
+      auto leftVal = to_double(left);
+      auto rightVal = to_double(right);
+      if (std::any_cast<double>(rightVal) == 0.0) {
         throw std::runtime_error("Division by zero");
       }
-      return std::any(std::any_cast<sjtu::int2048>(leftVal) / std::any_cast<sjtu::int2048>(rightVal));
+      return std::any(std::floor(std::any_cast<double>(leftVal) / std::any_cast<double>(rightVal)));
     }
-    auto leftVal = to_double(left);
-    auto rightVal = to_double(right);
-    if (std::any_cast<double>(rightVal) == 0.0) {
+    auto leftVal = to_int(left);
+    auto rightVal = to_int(right);
+    if (std::any_cast<sjtu::int2048>(rightVal) == sjtu::int2048(0)) {
       throw std::runtime_error("Division by zero");
     }
-    return std::any(std::floor(std::any_cast<double>(leftVal) / std::any_cast<double>(rightVal)));
+    return std::any(std::any_cast<sjtu::int2048>(leftVal) / std::any_cast<sjtu::int2048>(rightVal));
   }
 
   if (op == "%") {
