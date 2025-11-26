@@ -422,6 +422,7 @@ int2048 operator/(int2048 a, const int2048 &b) {
   if (result_sign == -1 && remainder.sign != 0) {
     quotient = quotient - int2048(1);
   }
+  quotient.delete_leading_zeros();
   return quotient;
 }
 
