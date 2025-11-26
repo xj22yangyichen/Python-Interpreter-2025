@@ -622,11 +622,14 @@ std::any EvalVisitor::visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) {
   flow.type = Flow::RETURN;
   if (ctx->testlist()) {
     auto tests = visit(ctx->testlist());
-    for (auto &test : std::any_cast<std::vector<std::any>>(tests)) {
-      // std::cerr << "Processing return value of type: " << test.type().name() << std::endl;
-      auto value = getVariable(test);
-      // std::cerr << "After getVariable, type: " << value.type().name() << std::endl;
-      returnValues.push_back(value);
+    if (auto valuesPtr = std::any_cast<std::vector<std::any>>(&tests)) {
+      auto values = *valuesPtr;
+      for (auto &test : values) {
+        // std::cerr << "Processing return value of type: " << test.type().name() << std::endl;
+        auto value = getVariable(test);
+        // std::cerr << "After getVariable, type: " << value.type().name() << std::endl;
+        returnValues.push_back(value);
+      }
     }
     flow.return_values = returnValues;
     return flow;
