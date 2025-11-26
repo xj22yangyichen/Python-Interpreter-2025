@@ -868,34 +868,37 @@ std::any EvalVisitor::visitMuldivmod_op(Python3Parser::Muldivmod_opContext *ctx)
 std::any EvalVisitor::visitFactor(Python3Parser::FactorContext *ctx) {
   if (ctx->factor()) {
     auto value = visit(ctx->factor());
-    value = getVariable(value);
     if (ctx->ADD()) {
+      value = getVariable(value);
       if (value.type() == typeid(double)) {
         return value;
       }
       if (value.type() == typeid(sjtu::int2048)) {
         return value;
       }
-      if (value.type() == typeid(bool)) {
-        bool boolValue = std::any_cast<bool>(value);
-        return std::any(boolValue ? sjtu::int2048(1) : sjtu::int2048(0));
-      }
+      // if (value.type() == typeid(bool)) {
+      //   bool boolValue = std::any_cast<bool>(value);
+      //   return std::any(boolValue ? sjtu::int2048(1) : sjtu::int2048(0));
+      // }
       throw std::runtime_error("TypeError: bad operand type for unary -");
     }
     if (ctx->MINUS()) {
+      value = getVariable(value);
       if (value.type() == typeid(double)) {
         return std::any(-std::any_cast<double>(value));
       }
       if (value.type() == typeid(sjtu::int2048)) {
         return std::any(-std::any_cast<sjtu::int2048>(value));
       }
-      if (value.type() == typeid(bool)) {
-        bool boolValue = std::any_cast<bool>(value);
-        return std::any(boolValue ? sjtu::int2048(-1) : sjtu::int2048(0));
-      }
+      // if (value.type() == typeid(bool)) {
+      //   bool boolValue = std::any_cast<bool>(value);
+      //   return std::any(boolValue ? sjtu::int2048(-1) : sjtu::int2048(0));
+      // }
       throw std::runtime_error("TypeError: bad operand type for unary -");
     }
-  } else if (ctx->atom_expr()) {
+    return value;
+  }
+  if (ctx->atom_expr()) {
     // auto tmp = visit(ctx->atom_expr());
     // if (auto vec = std::any_cast<std::vector<std::any>>(&tmp)) {
     //   std::cerr << "Visiting factor returning vector of size: " << vec->size() << std::endl;
