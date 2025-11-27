@@ -426,7 +426,7 @@ std::any EvalVisitor::operate(const std::string &op, std::any left, std::any rig
       }
       return std::any(leftStr == rightStr);
     }
-    if (left.type() == typeid(std::string) || right.type() == typeid(std::string)) {
+    if (left.type() == typeid(std::vector<std::string>) || right.type() == typeid(std::vector<std::string>)) {
       return std::any(false);
     }
     if (left.type() == typeid(double) || right.type() == typeid(double)) {
