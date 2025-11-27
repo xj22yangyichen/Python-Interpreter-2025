@@ -142,7 +142,8 @@ std::any EvalVisitor::print(const std::vector<std::any> &args_) {
       // std::cerr << "Printing int2048 value." << std::endl;
       std::cout << *val;
     } else if (auto val = std::any_cast<double>(&args[i])) {
-      std::cout << std::setprecision(6) << *val;
+      // std::cerr << "Printing double value." << std::endl;
+      std::cout << std::fixed << std::setprecision(6) << *val;
     } else if (auto val = std::any_cast<bool>(&args[i])) {
       std::cout << (*val ? "True" : "False");
     } else if (auto val = std::any_cast<None>(&args[i])) {
