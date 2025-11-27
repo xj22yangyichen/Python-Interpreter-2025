@@ -12,7 +12,7 @@ std::any EvalVisitor::to_int(std::any value) {
     ret = *val;
   }
   if (auto val = std::any_cast<double>(&value)) {
-    ret = static_cast<int>(*val);
+    ret = *val;
   }
   if (auto val = std::any_cast<std::vector<std::string>>(&value)) {
     std::string tmp;
